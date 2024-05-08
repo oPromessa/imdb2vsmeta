@@ -1,4 +1,9 @@
 ### IMDb to VSMETA
+-----------------
+by oPromessa, 2024, V0.0.1 
+* Published on [https://github.com/oPromessa/imdb2vsmeta/](https://github.com/oPromessa/imdb2vsmeta/)
+
+
 * If you own a Synology NAS and make use of Video Station.
 * And need a quick easy way to populate your Movie Library with Metadata.
 * imdb2vsmeta is the answer!
