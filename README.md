@@ -29,18 +29,16 @@
 
 ### Setup Environment
 
+* Clone a copy of the repository.
+* Create a VENV with Python
+* Install dependencies
+
 ```sh
 python3.11 -m venv venv
 source venv/bin/activate
 pip install imdbmovies
 pip install requests
 pip install click
-
-
-```
-
-```sh
-python3.11 -m pip install -e .
 ```
 
 ### Usage
@@ -61,10 +59,12 @@ Options:
                         processed into .vsmeta.
   --search-prefix TEXT  Media Filenames prefix for media  files to be
                         processed into .vsmeta. Eg: --search-prefix A
+  --check PATH          Check .vsmeta files. Show info. Exclusive with
+                        --search option.
   -f, --force           Force copy if the destination file already exists.
   -n, --no-copy         Do not copy over the .vsmeta files.
   -v, --verbose         Shows info found on IMDB.
   --help                Show this message and exit.
 ```
 
-* It generates the temp files *.jpg and *.vsmeta on the local folder. You can then remove them.
+* --check option generates the temp files *.jpg and *.vsmeta on the local folder. You can then remove them.
