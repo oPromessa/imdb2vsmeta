@@ -1,11 +1,8 @@
-import sys
 import os
 import shutil
 
 import click
 
-import csv
-# import json
 import re
 
 from datetime import date, datetime
@@ -254,8 +251,7 @@ def copy_file(source, destination, force=False, no_copy=False, verbose=False):
         print(f"\tNot found source file []'{source}'].")
 
 
-def find_files(root_dir, filename_prefix):
-    valid_ext = (".mp4", ".mkv", ".avi", ".mpg")
+def find_files(root_dir, filename_prefix, valid_ext = (".mp4", ".mkv", ".avi", ".mpg")):
 
     for root, dirs, files in os.walk(root_dir):
         for file in files:
@@ -283,22 +279,61 @@ def extract_info(file_path):
 
     return dirname, basename, filtered_title, filtered_year
 
+def check_file(file_path):
+    """Read .vsmeta file and print it's contents. 
+    
+    Images within .vsmeta are saved as image_back_drop.jpg and image_poster_NN.jpg
+    When checking multiple files, these files are overwritten.
+    """
+
+    vsmeta_bytes = readTemplateFile(file_path)
+    reader = VsMetaDecoder()
+    reader.decode(vsmeta_bytes)
+
+    if reader.info.season == 0:
+        vsmeta_type = "movie"
+    else:
+        vsmeta_type = "series"
+        if reader.info.tvshowMetaJson == "null":
+            reader.info.tvshowMetaJson = ""
+    
+    reader.info.printInfo('.', prefix = os.path.basename(file_path))
+
 
 @click.command()
 @click.option('--search', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
               help="Folder to recursively search for media  files to be processed into .vsmeta.")
 @click.option('--search-prefix', type=click.STRING, default="",
               help="Media Filenames prefix for media  files to be processed into .vsmeta. Eg: --search-prefix A")
+@click.option("--check", type=click.Path(exists=True, file_okay=True, dir_okay=True, resolve_path=True),
+              help="Check .vsmeta files. Show info. Exclusive with --search option.")
 @click.option('-f', '--force', is_flag=True, help="Force copy if the destination file already exists.")
 @click.option('-n', '--no-copy', is_flag=True, help="Do not copy over the .vsmeta files.")
 @click.option('-v', '--verbose', is_flag=True, help="Shows info found on IMDB.")
-def main(search, search_prefix, force, no_copy, verbose):
+def main(search, search_prefix, force, no_copy, verbose, check):
     """Searches on a folder for Movie Titles and generates .vsmeta and copy to Library.
 
        IMPORTANT: Use a Staging area on your NAS to generate .vsmeta and only then add them to you Video Library.
 
        It generates the temp files *.jpg and *.vsmeta on the current folder. You can then remove them.
     """
+
+    if check and (search or force or no_copy):
+        raise click.UsageError("Option --check is incompatible with --search, --force and --no-copy options.")
+
+    if force and no_copy:
+        raise click.UsageError("Options --force and --no-copy are exclusive, please provide only one.")
+
+    if check:
+        if os.path.isfile(check) and check.endswith(".vsmeta"):
+            click.echo(f"-------------- : Checking file [{check}]")
+            check_file(check)
+        elif os.path.isdir(check):
+            for found_file in find_files(check, search_prefix, valid_ext = ('.vsmeta', )):
+                click.echo(f"-------------- : Checking file [{check}]")
+                check_file(found_file)
+        else:
+            raise click.UsageError("Invalid check path or file name. Please provide a valid directory or .vsmeta file.")
 
     if search:
         click.echo(f"Processing folder: [{search}].")

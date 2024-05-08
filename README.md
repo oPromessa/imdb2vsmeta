@@ -1,8 +1,21 @@
-### See also VideoInfo Plugin
+### IMDb to VSMETA
+* If you own a Synology NAS and make use of Video Station.
+* And need a quick easy way to populate yout Movie Library with Metadata.
+* imdb2vsmeta is the answer!
 
-* https://github.com/C5H12O5/syno-videoinfo-plugin
+### How to use
 
-### GitHub
+* I run it off a Mac with access to the NAS video folder.
+
+* I place the Video folders to be scanned outside the Movies Library (normally video/Movies) in a temp/staging folder video/Staging.Area (Still on the NAS, to make it fast but not scanned as a Library!)
+* It looks for Media (.mkv, .mpg, .avi, and .mp4) files named "Movie Title (Year)" format.
+* It then looks for the Movie metadata in IMDB
+* It then generates the corresponding .vsmeta file to update Video Station
+* Side Note: poster and background images are the same.
+* Once the process is compelte you can move back the Movie folders into the video/Movies Library
+* ...and see the magic happens ;)
+
+### Recognition
 
 * https://github.com/oPromessa/vsMetaFileEncoder
 * https://gist.github.com/soywiz/2c10feb1231e70aca19a58aca9d6c16a
@@ -19,10 +32,11 @@
 ```sh
 python3.11 -m venv venv
 source venv/bin/activate
-pip install vsmetaEncoder
 pip install imdbmovies
 pip install requests
 pip install click
+
+
 ```
 
 ```sh
