@@ -251,7 +251,7 @@ def copy_file(source, destination, force=False, no_copy=False, verbose=False):
         print(f"\tNot found source file []'{source}'].")
 
 
-def find_files(root_dir, filename_prefix, valid_ext = (".mp4", ".mkv", ".avi", ".mpg")):
+def find_files(root_dir, filename_prefix, valid_ext=(".mp4", ".mkv", ".avi", ".mpg")):
 
     for root, dirs, files in os.walk(root_dir):
         for file in files:
@@ -279,9 +279,10 @@ def extract_info(file_path):
 
     return dirname, basename, filtered_title, filtered_year
 
+
 def check_file(file_path):
     """Read .vsmeta file and print it's contents. 
-    
+
     Images within .vsmeta are saved as image_back_drop.jpg and image_poster_NN.jpg
     When checking multiple files, these files are overwritten.
     """
@@ -296,8 +297,8 @@ def check_file(file_path):
         vsmeta_type = "series"
         if reader.info.tvshowMetaJson == "null":
             reader.info.tvshowMetaJson = ""
-    
-    reader.info.printInfo('.', prefix = os.path.basename(file_path))
+
+    reader.info.printInfo('.', prefix=os.path.basename(file_path))
 
 
 @click.command()
@@ -319,21 +320,24 @@ def main(search, search_prefix, force, no_copy, verbose, check):
     """
 
     if check and (search or force or no_copy):
-        raise click.UsageError("Option --check is incompatible with --search, --force and --no-copy options.")
+        raise click.UsageError(
+            "Option --check is incompatible with --search, --force and --no-copy options.")
 
     if force and no_copy:
-        raise click.UsageError("Options --force and --no-copy are exclusive, please provide only one.")
+        raise click.UsageError(
+            "Options --force and --no-copy are exclusive, please provide only one.")
 
     if check:
         if os.path.isfile(check) and check.endswith(".vsmeta"):
             click.echo(f"-------------- : Checking file [{check}]")
             check_file(check)
         elif os.path.isdir(check):
-            for found_file in find_files(check, search_prefix, valid_ext = ('.vsmeta', )):
+            for found_file in find_files(check, search_prefix, valid_ext=('.vsmeta', )):
                 click.echo(f"-------------- : Checking file [{check}]")
                 check_file(found_file)
         else:
-            raise click.UsageError("Invalid check path or file name. Please provide a valid directory or .vsmeta file.")
+            raise click.UsageError(
+                "Invalid check path or file name. Please provide a valid directory or .vsmeta file.")
 
     if search:
         click.echo(f"Processing folder: [{search}].")
