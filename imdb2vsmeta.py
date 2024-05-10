@@ -319,6 +319,10 @@ def main(search, search_prefix, force, no_copy, verbose, check):
        It generates the temp files *.jpg and *.vsmeta on the current folder. You can then remove them.
     """
 
+    if not (check or search):
+        raise click.UsageError(
+            "Must specify at least one opeion --search or --check. Use --help for additional help.")
+
     if check and (search or force or no_copy):
         raise click.UsageError(
             "Option --check is incompatible with --search, --force and --no-copy options.")

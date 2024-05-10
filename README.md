@@ -76,3 +76,13 @@ Options:
 ```
 
 * --check option generates the temp files *.jpg and *.vsmeta on the local folder. You can then remove them.
+
+#### Screenshots on How to use
+
+* Moving Files to Staging Area...and back once you run the tool.
+
+![Moving files to Staging Area](doc/Staging.Area.jpg) 
+
+* Resulting Metadata
+
+![Metadata of Movie](doc/Movie.jpg)
