@@ -1,3 +1,13 @@
+"""
+    by oPromessa, 2024
+    Published on https://github.com/oPromessa/imdb2vsmeta
+
+    If you own a Synology NAS and make use of Video Station.
+
+    And need a quick easy way to populate your Movie Library with Metadata.
+
+    imdb2vsmeta is the answer!
+"""    
 import os
 import shutil
 
@@ -12,7 +22,7 @@ import requests
 
 from imdbmovies import IMDB
 
-import vsmetaCodec
+# import vsmetaCodec
 
 from vsmetaCodec.vsmetaEncoder import VsMetaMovieEncoder
 from vsmetaCodec.vsmetaDecoder import VsMetaDecoder
@@ -77,6 +87,8 @@ def download_poster(url, filename):
 
 
 def find_metadata(title, year, filename, verbose):
+    """Search for a movie/Year metada on IMDb. 
+    """    
     click.echo(
         f"-------------- : Processing title [{click.style(title, fg='green')}] year [{year}] filename [{filename}]")
 
@@ -220,6 +232,11 @@ def map_to_vsmeta(imdb_id, imdb_info, posterFile, vsmeta_filename, verbose):
 
 
 def copy_file(source, destination, force=False, no_copy=False, verbose=False):
+    """Copy a source file to destination. 
+    
+    Dry-run (no_copy), Force overwrite and Verbose options. 
+    """    
+
     if verbose:
         click.echo(f"\tCopying title [{source}] to [{destination}]")
 
@@ -321,7 +338,7 @@ def main(search, search_prefix, force, no_copy, verbose, check):
 
     if not (check or search):
         raise click.UsageError(
-            "Must specify at least one opeion --search or --check. Use --help for additional help.")
+            "Must specify at least one option --search or --check. Use --help for additional help.")
 
     if check and (search or force or no_copy):
         raise click.UsageError(
