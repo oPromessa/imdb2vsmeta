@@ -24,7 +24,7 @@ by oPromessa, 2024, V0.0.1
 
 ### Recognition
 
-* https://github.com/oPromessa/vsMetaFileEncoder
+* https://github.com/TomMeHo/vsMetaFileEncoder
 * https://gist.github.com/soywiz/2c10feb1231e70aca19a58aca9d6c16a
 
 
