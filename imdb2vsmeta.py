@@ -7,43 +7,44 @@
     And need a quick easy way to populate your Movie Library with Metadata.
 
     imdb2vsmeta is the answer!
-"""    
+"""
 import os
-import shutil
-
-import click
-
 import re
+import shutil
 
 from datetime import date, datetime
 import textwrap
 
+import click
 import requests
 
 from imdbmovies import IMDB
 
-# import vsmetaCodec
-
 from vsmetaCodec.vsmetaEncoder import VsMetaMovieEncoder
 from vsmetaCodec.vsmetaDecoder import VsMetaDecoder
-from vsmetaCodec.vsmetaInfo import VsMetaInfo, VsMetaImageInfo
+from vsmetaCodec.vsmetaInfo import VsMetaImageInfo
 
 
-def writeVsMetaFile(filename: str, content: bytes):
-    with open(filename, 'wb') as writeFile:
-        writeFile.write(content)
-        writeFile.close()
+def write_vsmeta_file(filename: str, content: bytes):
+    """ Writes to file in binary mode. Used to write .vsmeta files.
+    """
+    with open(filename, 'wb') as write_file:
+        write_file.write(content)
+        write_file.close()
 
 
-def readTemplateFile(filename: str) -> bytes:
-    # file_content = b'\x00'
-    with open(filename, 'rb') as readFile:
-        file_content = readFile.read()
-        readFile.close()
+def read_vsmeta_file(filename: str) -> bytes:
+    """ Reads from file in binary mode. Used to read .vsmeta files.
+    """
+    with open(filename, 'rb') as read_file:
+        file_content = read_file.read()
+        read_file.close()
     return file_content
 
 
-def lookfor_imdb(movie_title, year=None, tv=None):
+def lookfor_imdb(movie_title, year=None, tv=False):
+    """ Returns movie_info of first movie from year returned by search in IMDb.
+    """
     imdb = IMDB()
     results = imdb.search(movie_title, year=year, tv=tv)
 
@@ -52,52 +53,61 @@ def lookfor_imdb(movie_title, year=None, tv=None):
                      if result["type"] == "movie"]
 
     print(
-        f"Found: [{len(movie_results)}] entries for Title: [{movie_title}] Year: [{year}]")
+        f"Found: [{len(movie_results)}] entries for "
+        f"Title: [{movie_title}] Year: [{year}]"
+    )
 
     for cnt, mv in enumerate(movie_results):
         print(
-            f"\tEntry: [{cnt}] Name: [{click.style(mv['name'], fg='yellow')}] Id: [{mv['id']}] Type: [{mv['type']}]")
+            f"\tEntry: [{cnt}] Name: [{click.style(mv['name'], fg='yellow')}] "
+            f"Id: [{mv['id']}] Type: [{mv['type']}]"
+        )
 
     if movie_results:
         movie_info = imdb.get_by_id(movie_results[0]['id'])
-        # print(movie_info)
         return movie_results[0]['id'], movie_info
-    else:
-        return None, None
 
-
-def search_imdb(movie_title, year):
-    # imdb = IMDB()
-    # year=None, tv=False,
-    id, result = lookfor_imdb(movie_title, year, tv=False)
-
-    # result = imdb.get_by_name(movie_title, tv=False)
-    if id and result:
-        # movie_info = imdb.get_movie(result[0].id)
-        return id, result
-    else:
-        return None, None
+    return None, None
 
 
 def download_poster(url, filename):
-    response = requests.get(url)
+    """ Download image poster (returned by IMDb) from URL info JPG filename.
+    """
+    # Set HTTP requests timeoout
+    http_timeout = 15
+
+    try:
+        response = requests.get(url, timeout=http_timeout)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        print("Http Error:", e)
+    except requests.exceptions.ConnectionError as e:
+        print("Error Connecting:", e)
+    except requests.exceptions.Timeout as e:
+        print("Timeout Error:", e)
+    except requests.exceptions.RequestException as e:
+        print("OOps: Something Else", e)
+
     if response.status_code == 200:
         with open(filename, 'wb') as f:
             f.write(response.content)
 
 
 def find_metadata(title, year, filename, verbose):
-    """Search for a movie/Year metada on IMDb. 
-    """    
+    """Search for a movie/Year metada on IMDb.
+
+       If found, downloads to a local .JPG file the poster
+    """
     click.echo(
-        f"-------------- : Processing title [{click.style(title, fg='green')}] year [{year}] filename [{filename}]")
+        f"-------------- : Processing title [{click.style(title, fg='green')}] "
+        f"year [{year}] filename [{filename}]")
 
     vsmeta_filename = None
 
     year = None if year is None else int(year)
 
     # Search IMDB for movie information
-    movie_id, movie_info = search_imdb(title, year=year)
+    movie_id, movie_info = lookfor_imdb(title, year=year)
 
     if movie_id and movie_info:
         # Download poster
@@ -114,12 +124,14 @@ def find_metadata(title, year, filename, verbose):
         print(f"No information found for '{click.style(title, fg='red')}'")
 
     click.echo(
-        f"\tProcessed title [{click.style(title, fg='green')}] year [{year}] vsmeta [{vsmeta_filename}]")
+        f"\tProcessed title [{click.style(title, fg='green')}] "
+        f"year [{year}] vsmeta [{vsmeta_filename}]")
 
     return vsmeta_filename
 
 
-def map_to_vsmeta(imdb_id, imdb_info, posterFile, vsmeta_filename, verbose):
+def map_to_vsmeta(imdb_id, imdb_info, poster_file, vsmeta_filename, verbose):
+    """Encodes a .VSMETA file based on imdb_info and poster_file """
 
     # vsmetaMovieEncoder
     vsmeta_writer = VsMetaMovieEncoder()
@@ -148,17 +160,13 @@ def map_to_vsmeta(imdb_id, imdb_info, posterFile, vsmeta_filename, verbose):
     # Not used. Set to 1900-01-01
     info.tvshowReleaseDate = date(1900, 1, 1)
 
-    # Try with Locked = False
+    # Locked = False. If True, in Video Sation does not allow changes to vsmeta.
     info.episodeLocked = False
 
-    # Double check!
     info.timestamp = int(datetime.now().timestamp())
 
     # Classification
-    # A rating of None would crash the reading of .vsmeta file with error:
-    #    return info._readData(info.readSpecialInt()).decode()
-    #           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    # UnicodeDecodeError: 'utf-8' codec can't decode byte 0x8a in position 1: invalid start byte
+    # A classification of None would crash the reading of .vsmeta file.
     info.classification = "" if imdb_info['contentRating'] is None else imdb_info['contentRating']
 
     # Rating
@@ -186,23 +194,25 @@ def map_to_vsmeta(imdb_id, imdb_info, posterFile, vsmeta_filename, verbose):
     info.list.genre = imdb_info['genre']
 
     # Read JPG images for Poster and Background
-    with open(posterFile, "rb") as image:
-        f = image.read()
+    if os.path.isfile(poster_file):
+        with open(poster_file, "rb") as image:
+            f = image.read()
 
-    # Poster (of Movie)
-    episode_img = VsMetaImageInfo()
-    episode_img.image = f
-    info.episodeImageInfo.append(episode_img)
+        # Poster (of Movie)
+        if f is not None:
+            episode_img = VsMetaImageInfo()
+            episode_img.image = f
+            info.episodeImageInfo.append(episode_img)
 
-    # Background (of Movie)
-    # Use Posters file for Backdrop also
-    info.backdropImageInfo.image = f
+            # Background (of Movie)
+            # Use Posters file for Backdrop also
+            info.backdropImageInfo.image = f
 
-    # Not used. Set to VsImageIfnfo()
-    info.posterImageInfo = episode_img
+            # Not used. Set to VsImageIfnfo()
+            info.posterImageInfo = episode_img
 
     if verbose:
-        click.echo(f"\t---------------: ---------------")
+        click.echo("\t---------------: ---------------")
         click.echo(f"\tIMDB id        : {imdb_id}")
         click.echo(f"\tTitle          : {info.showTitle}")
         click.echo(f"\tTitle2         : {info.showTitle2}")
@@ -214,28 +224,26 @@ def map_to_vsmeta(imdb_id, imdb_info, posterFile, vsmeta_filename, verbose):
         click.echo(f"\tClassification : {info.classification}")
         click.echo(f"\tRating         : {info.rating:1.1f}")
         wrap_text = "\n\t                 ".join(
-            textwrap.wrap(info.chapterSummary, 150))
-        click.echo("\tSummary        : {0}".format(wrap_text))
-        click.echo(f"\tCast           : " +
-                   "".join(["{0}, ".format(name) for name in info.list.cast]))
-        click.echo(f"\tDirector       : " +
-                   "".join(["{0}, ".format(name) for name in info.list.director]))
-        click.echo(f"\tWriter         : " +
-                   "".join(["{0}, ".format(name) for name in info.list.writer]))
-        click.echo(f"\tGenre          : " +
-                   "".join(["{0}, ".format(name) for name in info.list.genre]))
-        click.echo(f"\t---------------: ---------------")
+            textwrap.wrap(info.chapterSummary, 80))
+        click.echo(f"\tSummary        : {wrap_text}")
+        click.echo(
+            f"\tCast           : {''.join([f'{name}, ' for name in info.list.cast])}")
+        click.echo(
+            f"\tDirector       : {''.join([f'{name}, ' for name in info.list.director])}")
+        click.echo(
+            f"\tWriter         : {''.join([f'{name}, ' for name in info.list.writer])}")
+        click.echo(
+            f"\tGenre          : {''.join([f'{name}, ' for name in info.list.genre])}")
+        click.echo("\t---------------: ---------------")
 
-    writeVsMetaFile(vsmeta_filename, vsmeta_writer.encode(info))
-
-    return True
+    write_vsmeta_file(vsmeta_filename, vsmeta_writer.encode(info))
 
 
 def copy_file(source, destination, force=False, no_copy=False, verbose=False):
-    """Copy a source file to destination. 
-    
-    Dry-run (no_copy), Force overwrite and Verbose options. 
-    """    
+    """Copy a source file to destination.
+
+    Dry-run (no_copy), Force overwrite and Verbose options.
+    """
 
     if verbose:
         click.echo(f"\tCopying title [{source}] to [{destination}]")
@@ -253,7 +261,8 @@ def copy_file(source, destination, force=False, no_copy=False, verbose=False):
                     f"\tCopied ['{file_name}'] to ['{destination}'].")
             elif not force:
                 click.echo(
-                    f"\tSkipping ['{file_name}'] in ['{destination}']. Destination exists. See -f option.")
+                    f"\tSkipping ['{file_name}'] in ['{destination}']. "
+                    "Destination exists. See -f option.")
             else:
                 click.echo(
                     f"\tOverwriting ['{file_name}'] in ['{destination}'].")
@@ -268,9 +277,18 @@ def copy_file(source, destination, force=False, no_copy=False, verbose=False):
         print(f"\tNot found source file []'{source}'].")
 
 
-def find_files(root_dir, filename_prefix, valid_ext=(".mp4", ".mkv", ".avi", ".mpg")):
+def find_files(
+    root_dir,
+    filename_prefix,
+    valid_ext=(
+        ".mp4",
+        ".mkv",
+        ".avi",
+        ".mpg")):
+    """ Returns files with extension in valid_ext list
+    """
 
-    for root, dirs, files in os.walk(root_dir):
+    for root, _, files in os.walk(root_dir):
         for file in files:
             if file.startswith(filename_prefix) and \
                any(file.casefold().endswith(ext) for ext in valid_ext) and \
@@ -279,6 +297,9 @@ def find_files(root_dir, filename_prefix, valid_ext=(".mp4", ".mkv", ".avi", ".m
 
 
 def extract_info(file_path):
+    """ Convert file_path into dirname and from basename extract
+        movie_tile and year. Expecting filename format 'movie title name (1999)'
+    """
     dirname = os.path.dirname(file_path)
     basename = os.path.basename(file_path)
 
@@ -298,42 +319,53 @@ def extract_info(file_path):
 
 
 def check_file(file_path):
-    """Read .vsmeta file and print it's contents. 
+    """Read .vsmeta file and print it's contents.
 
     Images within .vsmeta are saved as image_back_drop.jpg and image_poster_NN.jpg
     When checking multiple files, these files are overwritten.
     """
 
-    vsmeta_bytes = readTemplateFile(file_path)
+    vsmeta_bytes = read_vsmeta_file(file_path)
     reader = VsMetaDecoder()
     reader.decode(vsmeta_bytes)
 
+    # IF vsmeta file is a Movie
     if reader.info.season == 0:
-        vsmeta_type = "movie"
-    else:
-        vsmeta_type = "series"
-        if reader.info.tvshowMetaJson == "null":
-            reader.info.tvshowMetaJson = ""
-
-    reader.info.printInfo('.', prefix=os.path.basename(file_path))
+        reader.info.printInfo('.', prefix=os.path.basename(file_path))
 
 
 @click.command()
-@click.option('--search', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-              help="Folder to recursively search for media  files to be processed into .vsmeta.")
+@click.option('--search',
+              type=click.Path(exists=True,
+                              file_okay=False,
+                              dir_okay=True,
+                              resolve_path=True),
+              help="Folder to recursively search for media  files to be "
+                   "processed into .vsmeta.")
 @click.option('--search-prefix', type=click.STRING, default="",
-              help="Media Filenames prefix for media  files to be processed into .vsmeta. Eg: --search-prefix A")
-@click.option("--check", type=click.Path(exists=True, file_okay=True, dir_okay=True, resolve_path=True),
-              help="Check .vsmeta files. Show info. Exclusive with --search option.")
-@click.option('-f', '--force', is_flag=True, help="Force copy if the destination file already exists.")
-@click.option('-n', '--no-copy', is_flag=True, help="Do not copy over the .vsmeta files.")
+              help="Media Filenames prefix for media  files to be processed "
+                   "into .vsmeta. Eg: --search-prefix A")
+@click.option("--check",
+              type=click.Path(exists=True,
+                              file_okay=True,
+                              dir_okay=True,
+                              resolve_path=True),
+              help="Check .vsmeta files. Show info. "
+                   "Exclusive with --search option.")
+@click.option('-f', '--force', is_flag=True,
+              help="Force copy if the destination file already exists.")
+@click.option('-n', '--no-copy', is_flag=True,
+              help="Do not copy over the .vsmeta files.")
 @click.option('-v', '--verbose', is_flag=True, help="Shows info found on IMDB.")
-def main(search, search_prefix, force, no_copy, verbose, check):
-    """Searches on a folder for Movie Titles and generates .vsmeta and copy to Library.
+def main(search, search_prefix, check, force, no_copy, verbose):
+    """Searches on a folder for Movie Titles and generates .vsmeta file and
+       copies them over to your Video Station Library
 
-       IMPORTANT: Use a Staging area on your NAS to generate .vsmeta and only then add them to you Video Library.
+       IMPORTANT: Use a Staging area on your NAS to generate .vsmeta and only
+                  then, add them to you Video Library.
 
-       It generates the temp files *.jpg and *.vsmeta on the current folder. You can then remove them.
+       It generates the temp files *.jpg and *.vsmeta on the current folder. 
+       You can then remove them.
     """
 
     if not (check or search):
@@ -353,18 +385,21 @@ def main(search, search_prefix, force, no_copy, verbose, check):
             click.echo(f"-------------- : Checking file [{check}]")
             check_file(check)
         elif os.path.isdir(check):
-            for found_file in find_files(check, search_prefix, valid_ext=('.vsmeta', )):
+            for found_file in find_files(
+                    check,
+                    search_prefix,
+                    valid_ext=(
+                        '.vsmeta',
+                    )):
                 click.echo(f"-------------- : Checking file [{check}]")
                 check_file(found_file)
         else:
             raise click.UsageError(
-                "Invalid check path or file name. Please provide a valid directory or .vsmeta file.")
+                "Invalid check path or file name. "
+                "Please provide a valid directory or .vsmeta file.")
 
     if search:
         click.echo(f"Processing folder: [{search}].")
-        # Set the root directory and filename prefix
-        root_dir = '/Volumes/video/Movies/'
-        filename_prefix = 'A'
 
         # Iterate over the matching files
         for found_file in find_files(search, search_prefix):
