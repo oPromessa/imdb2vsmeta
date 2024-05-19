@@ -33,7 +33,7 @@ by oPromessa, 2024, V0.0.1
 * IMPORTANT: The .vsmeta file is available when Video Station indexes the video file first time.
 * Use a Staging area to put the Videos and the .vsmeta file **outside** the Video Station Library. You can then move them inside and voila.. VideoStation reads everything nicely!
 * Only support Movies .vsmeta encoding
-* Will work on TV Shows later on...
+* Added support to TV Shows.
 
 ### Setup Environment
 
@@ -54,23 +54,33 @@ pip install vsmetaEncoder
 ```py
 Usage: imdb2vsmeta.py [OPTIONS]
 
-  Searches on a folder for Movie Titles and generates .vsmeta and copy to
-  Library.
+  Searches on a folder for Movie Titles and generates .vsmeta file and copies
+  them over to your Video Station Library
 
-  IMPORTANT: Use a Staging area on your NAS to generate .vsmeta and only then
-  add them to you Video Library.
+  IMPORTANT: Use a Staging area on your NAS to generate .vsmeta and only
+  then, add them to you Video Library.
 
-  It generates the temp files *.jpg and *.vsmeta on the current folder. You
+  It generates the temp files *.jpg and *.vsmeta on the current folder.  You
   can then remove them.
 
 Options:
+  --movies              Specify if it is a movie. Must choose movies or
+                        series. NOTE: This argument is mutually exclusive with
+                        arguments: [series].
+  --series              Specify if it is a series. Must choose movies or
+                        series. NOTE: This argument is mutually exclusive with
+                        arguments: [movies].
   --search DIRECTORY    Folder to recursively search for media  files to be
-                        processed into .vsmeta.
+                        processed into .vsmeta. NOTE: This argument is
+                        mutually exclusive with arguments: [check].
+  --check PATH          Check .vsmeta files. Show info. Exclusive with
+                        --search option. NOTE: This argument is mutually
+                        exclusive with arguments: [search].
   --search-prefix TEXT  Media Filenames prefix for media  files to be
                         processed into .vsmeta. Eg: --search-prefix A
-  --check PATH          Check .vsmeta files. Show info. Exclusive with
-                        --search option.
   -f, --force           Force copy if the destination file already exists.
+                        NOTE: This argument is mutually exclusive with
+                        arguments: [no_copy].
   -n, --no-copy         Do not copy over the .vsmeta files.
   -v, --verbose         Shows info found on IMDB.
   --help                Show this message and exit.
