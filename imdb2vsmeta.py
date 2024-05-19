@@ -465,10 +465,10 @@ def extract_info(file_path, tv):
 
     # filtered_value = re.search(r'\D*(\d{4})', basename)
     if tv:
-        filtered_value = re.search(r'^(.*?)(\d{4})(.*)$',
+        filtered_value = re.search(r'^(.*?)(\d{4})(.*)([sS]\d{2}[sE]\d{2})(.*)$',
                                    basename)
     else:
-        filtered_value = re.search(r'^(.*?)(\d{4})(.*)([sS]\d{2}[sE]\d{2})(.*)$',
+        filtered_value = re.search(r'^(.*?)(\d{4})(.*)$',
                                    basename)
 
     filtered_title = None
@@ -480,9 +480,11 @@ def extract_info(file_path, tv):
         filtered_title = filtered_value.group(1)
         filtered_year = filtered_value.group(2)
         if tv:
-            filtered_season = int(filtered_value.group(3)[2:4])
-            filtered_episode = int(filtered_value.group(3)[5:7])
-
+            try:
+                filtered_season = int(filtered_value.group(4)[1:3]) 
+                filtered_episode = int(filtered_value.group(4)[4:6])
+            except ValueError:
+                pass
     else:
         filtered_title = basename
 
@@ -502,9 +504,7 @@ def check_file(file_path):
     reader = VsMetaDecoder()
     reader.decode(vsmeta_bytes)
 
-    # IF vsmeta file is a Movie
-    if reader.info.season == 0:
-        reader.info.printInfo('.', prefix=os.path.basename(file_path))
+    reader.info.printInfo('.', prefix=os.path.basename(file_path))
 
 
 @click.command()
@@ -551,9 +551,9 @@ def cli(movies, series, search, search_prefix, check, force, no_copy, verbose):
     """
 
     if movies:
-        click.echo('Movies selected.')
+        tv = False
     elif series:
-        click.echo('Series selected.')
+        tv = True
     else:
         raise click.UsageError(
             'Neither movie nor series selected.')
@@ -593,7 +593,7 @@ def cli(movies, series, search, search_prefix, check, force, no_copy, verbose):
         for found_file in find_files(search, search_prefix):
             # click.echo(f"Found file: [{found_file}]")
             dirname, basename, title, year, season, episode = extract_info(
-                found_file, False if movies else True)
+                found_file, tv)
             if movies:
                 vsmeta = find_metadata(
                     title, year, basename, verbose, tv=False)
