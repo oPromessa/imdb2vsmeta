@@ -246,7 +246,7 @@ def copy_file(source, destination, force=False, no_copy=False, verbose=False):
     """
 
     if verbose:
-        click.echo(f"\tCopying title [{source}] to [{destination}]")
+        click.echo(f"\tCopying title ['{source}'] to ['{destination}']")
 
     # Check if the source file exists
     if os.path.isfile(source):
@@ -264,11 +264,16 @@ def copy_file(source, destination, force=False, no_copy=False, verbose=False):
                     f"\tSkipping ['{file_name}'] in ['{destination}']. "
                     "Destination exists. See -f option.")
             else:
-                click.echo(
-                    f"\tOverwriting ['{file_name}'] in ['{destination}'].")
-                shutil.copy(source, destination)
-                print(
-                    f"\tCopied ['{file_name}'] to ['{destination}'].")
+                try: 
+                    click.echo(
+                        f"\tOverwriting ['{file_name}'] in ['{destination}'].")
+                    shutil.copy(source, destination)
+                    print(
+                        f"\tCopied ['{file_name}'] to ['{destination}'].")
+                except shutil.SameFileError as e:
+                    print(
+                        f"\tNot overwriting same file ['{file_name}'] "
+                        f"error ['{e}'].")
         else:
             click.echo(
                 f"\tNo copy: ['{file_name}'] in ['{destination}'].")

@@ -47,6 +47,7 @@ source venv/bin/activate
 pip install imdbmovies
 pip install requests
 pip install click
+pip install vsmetaEncoder
 ```
 
 ### Usage
