@@ -128,7 +128,9 @@ def find_metadata(title, year, filename, verbose,
     """
     click.echo(
         f"-------------- : Processing title [{click.style(title, fg='green')}] "
-        f"year [{year}] filename [{filename}]")
+        f"year [{year}] "
+        f"season [{season}] episode [{episode}] filename [{filename}]" \
+            if tv else "filename [{filename}]")
 
     vsmeta_filename = None
 
@@ -353,13 +355,13 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
         if f is not None:
             episode_img = VsMetaImageInfo()
             episode_img.image = f
-            info.episodeImageInfo.append(episode_img)
+            # info.episodeImageInfo.append(episode_img)
 
-            # Background (of Movie)
+            # Background (of Serie)
             # Use Posters file for Backdrop also
             info.backdropImageInfo.image = f
 
-            # Not used. Set to VsImageIfnfo()
+            # Pster (of Serie)
             info.posterImageInfo = episode_img
 
     if verbose:
@@ -371,8 +373,8 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
         click.echo(f"\tEpisode year   : {info.year}")
         click.echo(f"\tEpisode date   : {info.episodeReleaseDate}")
         click.echo(f"\tTV Show date   : {info.tvshowReleaseDate}")
-        click.echo(f"\tTV Show Season : {info.season}")
-        click.echo(f"\tTV Show Episode: {info.episode}")
+        click.echo(f"\tTV Show Season : {info.season:02}")
+        click.echo(f"\tTV Show Episode: {info.episode:02}")
 
         click.echo(f"\tEpisode locked : {info.episodeLocked}")
         click.echo(f"\tTimeStamp      : {info.timestamp}")
@@ -463,27 +465,39 @@ def extract_info(file_path, tv):
     dirname = os.path.dirname(file_path)
     basename = os.path.basename(file_path)
 
-    # filtered_value = re.search(r'\D*(\d{4})', basename)
-    if tv:
-        filtered_value = re.search(r'^(.*?)(\d{4})(.*)([sS]\d{2}[sE]\d{2})(.*)$',
-                                   basename)
-    else:
-        filtered_value = re.search(r'^(.*?)(\d{4})(.*)$',
-                                   basename)
-
     filtered_title = None
     filtered_year = None
     filtered_season = None
     filtered_episode = None
 
+    valid_year = True
+
+    # filtered_value = re.search(r'\D*(\d{4})', basename)
+    if tv:
+        # TV Show Title (Year) S01E01 => Group #1, #2, _, #4
+        filtered_value = re.search(r'^(.*?)(\d{4})(.*)([sS]\d{2}[eE]\d{2})(.*)$',
+                                   basename)
+        # TV Show Title S01E01 => Group #1, _, #2
+        if not filtered_value:
+            valid_year = False
+            filtered_value = re.search(r'^(.*?)([sS]\d{2}[eE]\d{2})(.*)$',
+                                       basename)
+    else:
+        # Movie Title (Year) => Group #1, #2
+        filtered_value = re.search(r'^(.*?)(\d{4})(.*)$',
+                                   basename)
+
     if filtered_value:
         filtered_title = filtered_value.group(1)
-        filtered_year = filtered_value.group(2)
+        filtered_year = filtered_value.group(2) if valid_year else None
         if tv:
             try:
-                filtered_season = int(filtered_value.group(4)[1:3]) 
-                filtered_episode = int(filtered_value.group(4)[4:6])
+                filtered_season = int(filtered_value.group(4)[1:3]) \
+                    if valid_year else int(filtered_value.group(2)[1:3])
+                filtered_episode = int(filtered_value.group(4)[4:6]) \
+                    if valid_year else int(filtered_value.group(2)[4:6])
             except ValueError:
+                click.echo(f"Season and Episode info not found!")
                 pass
     else:
         filtered_title = basename
@@ -505,7 +519,8 @@ def check_file(file_path):
     reader.decode(vsmeta_bytes)
 
     reader.info.printInfo('.', prefix=os.path.basename(file_path))
-
+    click.echo(f"TV Show Season : {reader.info.season:02}")
+    click.echo(f"TV Show Episode: {reader.info.episode:02}")
 
 @click.command()
 @click.option('--movies', is_flag=True,
@@ -579,7 +594,7 @@ def cli(movies, series, search, search_prefix, check, force, no_copy, verbose):
                     valid_ext=(
                         '.vsmeta',
                     )):
-                click.echo(f"-------------- : Checking file [{check}]")
+                click.echo(f"-------------- : Checking file [{found_file}]")
                 check_file(found_file)
         else:
             raise click.UsageError(
