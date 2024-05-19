@@ -51,6 +51,13 @@ pip install vsmetaEncoder
 ```
 
 ### Usage
+
+* **Example**
+```sh
+python imdb2vsmeta.py --search /Volumes/video/Staging.Movies/  --verbose --search-prefix Sugar --series --no-copy
+```
+
+* **Options**
 ```py
 Usage: imdb2vsmeta.py [OPTIONS]
 
