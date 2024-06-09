@@ -103,6 +103,7 @@ def download_poster(url, filename):
     # Set HTTP requests timeoout
     http_timeout = 15
 
+    response = None
     try:
         response = requests.get(url, timeout=http_timeout)
         response.raise_for_status()
@@ -113,11 +114,14 @@ def download_poster(url, filename):
     except requests.exceptions.Timeout as e:
         print("Timeout Error:", e)
     except requests.exceptions.RequestException as e:
-        print("OOps: Something Else", e)
+        click.echo(f"OOps: Something Else {e}", err=True)
 
-    if response.status_code == 200:
+    if response and response.status_code == 200:
         with open(filename, 'wb') as f:
             f.write(response.content)
+        return True
+    else:
+        return False
 
 
 def find_metadata(title, year, filename, verbose, 
@@ -303,6 +307,10 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
         int(imdb_info['datePublished'][:4]),
         int(imdb_info['datePublished'][5:7]),
         int(imdb_info['datePublished'][8:])))
+    info.episodeReleaseDate = date(
+        int(imdb_info['datePublished'][:4]),
+        int(imdb_info['datePublished'][5:7]),
+        int(imdb_info['datePublished'][8:]))
 
     # Set to 0 for Movies: season and episode
     info.season = season
@@ -318,6 +326,9 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
 
     info.timestamp = int(datetime.now().timestamp())
 
+    # Summary
+    info.chapterSummary = imdb_info['description'] if imdb_info['description'] else "##NOT FOUND##"
+
     # Classification
     # A classification of None would crash the reading of .vsmeta file.
     info.classification = "" if imdb_info['contentRating'] is None else imdb_info['contentRating']
@@ -325,13 +336,13 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
     # Rating
     info.rating = imdb_info['rating']['ratingValue']
 
-    # Summary
-    info.chapterSummary = imdb_info['description']
-
     # Cast
     info.list.cast = []
     for actor in imdb_info['actor']:
         info.list.cast.append(actor['name'])
+
+    # Genre
+    # info.list.genre = imdb_info['genre']
 
     # Director
     info.list.director = []
@@ -343,9 +354,6 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
     for creator in imdb_info['creator']:
         info.list.writer.append(creator['name'])
 
-    # Genre
-    # info.list.genre = imdb_info['genre']
-
     # Read JPG images for Poster and Background
     if os.path.isfile(poster_file):
         with open(poster_file, "rb") as image:
@@ -355,6 +363,7 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
         if f is not None:
             episode_img = VsMetaImageInfo()
             episode_img.image = f
+            # Do not use to keep thumbnail of Video
             # info.episodeImageInfo.append(episode_img)
 
             # Background (of Serie)
@@ -371,11 +380,12 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
         click.echo(f"\tTitle2         : {info.showTitle2}")
         click.echo(f"\tEpisode title  : {info.episodeTitle}")
         click.echo(f"\tEpisode year   : {info.year}")
+        click.echo(f"\tTV Show Season : "
+                   f"{(info.season if info.season else 0):02}")
+        click.echo(f"\tTV Show Episode: "
+                   f"{(info.episode if info.episode else 0):02}")        
         click.echo(f"\tEpisode date   : {info.episodeReleaseDate}")
         click.echo(f"\tTV Show date   : {info.tvshowReleaseDate}")
-        click.echo(f"\tTV Show Season : {info.season:02}")
-        click.echo(f"\tTV Show Episode: {info.episode:02}")
-
         click.echo(f"\tEpisode locked : {info.episodeLocked}")
         click.echo(f"\tTimeStamp      : {info.timestamp}")
         click.echo(f"\tClassification : {info.classification}")
@@ -537,6 +547,9 @@ def check_file(file_path):
               cls=MutuallyExclusiveOption, mutually_exclusive=['check'],
               help="Folder to recursively search for media  files to be "
                    "processed into .vsmeta.")
+@click.option('--skip', is_flag=True, 
+              cls=MutuallyExclusiveOption, mutually_exclusive=['check', 'movies'],
+              help="Skip searching for Episodes in a Season.")
 @click.option("--check",
               type=click.Path(exists=True,
                               file_okay=True,
@@ -554,7 +567,7 @@ def check_file(file_path):
 @click.option('-n', '--no-copy', is_flag=True,
               help="Do not copy over the .vsmeta files.")
 @click.option('-v', '--verbose', is_flag=True, help="Shows info found on IMDB.")
-def cli(movies, series, search, search_prefix, check, force, no_copy, verbose):
+def cli(movies, series, search, search_prefix, skip, check, force, no_copy, verbose):
     """Searches on a folder for Movie Titles and generates .vsmeta file and
        copies them over to your Video Station Library
 
@@ -604,18 +617,27 @@ def cli(movies, series, search, search_prefix, check, force, no_copy, verbose):
     if search:
         click.echo(f"Processing folder: [{search}].")
 
+        if series:
+            processed_titles = []
         # Iterate over the matching files
         for found_file in find_files(search, search_prefix):
+            vsmeta = None
             # click.echo(f"Found file: [{found_file}]")
             dirname, basename, title, year, season, episode = extract_info(
                 found_file, tv)
             if movies:
                 vsmeta = find_metadata(
                     title, year, basename, verbose, tv=False)
-            elif series:
+            elif series and title not in processed_titles:
+                processed_titles.append(title)
                 vsmeta = find_metadata(
                     title, year, basename, verbose, tv=True, 
                     season=season, episode=episode)
+            else:
+                click.echo(
+                    f"-------------- :Bypassing title [{click.style(title, fg='green')}] "
+                    f"filename [{found_file}]")
+
             if vsmeta:
                 copy_file(vsmeta, os.path.join(dirname, vsmeta),
                           force, no_copy, verbose)
