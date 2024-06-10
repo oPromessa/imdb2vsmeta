@@ -303,23 +303,26 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
     # Publishing Date - episodeReleaseDate
     # also sets Year
     # info.year=imdb_info['datePublished'][:4]
-    info.setEpisodeDate(date(
-        int(imdb_info['datePublished'][:4]),
-        int(imdb_info['datePublished'][5:7]),
-        int(imdb_info['datePublished'][8:])))
-    info.episodeReleaseDate = date(
-        int(imdb_info['datePublished'][:4]),
-        int(imdb_info['datePublished'][5:7]),
-        int(imdb_info['datePublished'][8:]))
+    # click.echo(f"imdb_info['datePublished']: {imdb_info['datePublished']}")
+    if imdb_info['datePublished'] is not None:
+        info.setEpisodeDate(date(
+            int(imdb_info['datePublished'][:4]),
+            int(imdb_info['datePublished'][5:7]),
+            int(imdb_info['datePublished'][8:])))
+        info.episodeReleaseDate = date(
+            int(imdb_info['datePublished'][:4]),
+            int(imdb_info['datePublished'][5:7]),
+            int(imdb_info['datePublished'][8:]))
 
     # Set to 0 for Movies: season and episode
     info.season = season
     info.episode = episode
 
-    info.tvshowReleaseDate = date(
-        int(imdb_info['datePublished'][:4]),
-        int(imdb_info['datePublished'][5:7]),
-        int(imdb_info['datePublished'][8:]))
+    if imdb_info['datePublished'] is not None:
+        info.tvshowReleaseDate = date(
+            int(imdb_info['datePublished'][:4]),
+            int(imdb_info['datePublished'][5:7]),
+            int(imdb_info['datePublished'][8:]))
 
     # Locked = False. If True, in Video Sation does not allow changes to vsmeta.
     info.episodeLocked = False
@@ -389,7 +392,8 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
         click.echo(f"\tEpisode locked : {info.episodeLocked}")
         click.echo(f"\tTimeStamp      : {info.timestamp}")
         click.echo(f"\tClassification : {info.classification}")
-        click.echo(f"\tRating         : {info.rating:1.1f}")
+        if info.rating is not None:
+            click.echo(f"\tRating         : {info.rating:1.1f}")
         wrap_text = "\n\t                 ".join(
             textwrap.wrap(info.chapterSummary, 80))
         click.echo(f"\tSummary        : {wrap_text}")
@@ -628,15 +632,15 @@ def cli(movies, series, search, search_prefix, skip, check, force, no_copy, verb
             if movies:
                 vsmeta = find_metadata(
                     title, year, basename, verbose, tv=False)
-            elif series and title not in processed_titles:
+            elif skip and series and title in processed_titles:
+                click.echo(
+                    f"-------------- :Bypassing title [{click.style(title, fg='green')}] "
+                    f"filename [{found_file}]")
+            else:
                 processed_titles.append(title)
                 vsmeta = find_metadata(
                     title, year, basename, verbose, tv=True, 
                     season=season, episode=episode)
-            else:
-                click.echo(
-                    f"-------------- :Bypassing title [{click.style(title, fg='green')}] "
-                    f"filename [{found_file}]")
 
             if vsmeta:
                 copy_file(vsmeta, os.path.join(dirname, vsmeta),
