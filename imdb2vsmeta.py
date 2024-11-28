@@ -69,15 +69,23 @@ def read_vsmeta_file(filename: str) -> bytes:
 
 
 def lookfor_imdb(movie_title, year=None, tv=False):
-    """ Returns movie_info of first movie/tv series from year 
+    """ Returns movie_info of first movie/tv series from year
         returned by search in IMDb.
     """
     imdb = IMDB()
     results = imdb.search(movie_title, year=year, tv=tv)
 
     # Filter only movie type entries
-    movie_results = [result for result in results["results"]
-                     if result["type"] == ("tvSeries" if tv else "movie")]
+    movie_results = []
+  
+    for result in results["results"]:
+        if tv and result["type"] == "tvSeries":
+            movie_results.append(result)
+        elif result["type"] in ["movie", "short", "tvMovie"]:
+            movie_results.append(result)
+        else:
+            print(f"Title type found [{result['type']}] is not: "
+                  f"{'tvSeries' if tv else 'movie or short'}")
 
     print(
         f"Found: [{len(movie_results)}] entries for "
@@ -124,17 +132,20 @@ def download_poster(url, filename):
         return False
 
 
-def find_metadata(title, year, filename, verbose, 
+def find_metadata(title, year, filename, verbose,
                   tv=False, season = 0, episode = 0):
     """Search for a movie/Year metada on IMDb.
 
        If found, downloads to a local .JPG file the poster
     """
-    click.echo(
-        f"-------------- : Processing title [{click.style(title, fg='green')}] "
-        f"year [{year}] "
-        f"season [{season}] episode [{episode}] filename [{filename}]" \
-            if tv else "filename [{filename}]")
+
+    msg = f"-------------- : Processing title [{click.style(title, fg='green')}] "
+    msg += f"year [{year}] "
+    if tv:
+        msg += f"season [{season}] episode [{episode}] filename [{filename}]"
+    else:
+        msg += f"filename [{filename}]"
+    click.echo(msg)
 
     vsmeta_filename = None
 
@@ -285,7 +296,7 @@ def map_to_vsmeta_movie(imdb_id, imdb_info, poster_file, vsmeta_filename, verbos
     write_vsmeta_file(vsmeta_filename, vsmeta_writer.encode(info))
 
 
-def map_to_vsmeta_series(imdb_id, imdb_info, season, episode, 
+def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
                          poster_file, vsmeta_filename, verbose):
     """Encodes a .VSMETA Series file based on imdb_info and poster_file """
 
@@ -386,7 +397,7 @@ def map_to_vsmeta_series(imdb_id, imdb_info, season, episode,
         click.echo(f"\tTV Show Season : "
                    f"{(info.season if info.season else 0):02}")
         click.echo(f"\tTV Show Episode: "
-                   f"{(info.episode if info.episode else 0):02}")        
+                   f"{(info.episode if info.episode else 0):02}")
         click.echo(f"\tEpisode date   : {info.episodeReleaseDate}")
         click.echo(f"\tTV Show date   : {info.tvshowReleaseDate}")
         click.echo(f"\tEpisode locked : {info.episodeLocked}")
@@ -551,7 +562,7 @@ def check_file(file_path):
               cls=MutuallyExclusiveOption, mutually_exclusive=['check'],
               help="Folder to recursively search for media  files to be "
                    "processed into .vsmeta.")
-@click.option('--skip', is_flag=True, 
+@click.option('--skip', is_flag=True,
               cls=MutuallyExclusiveOption, mutually_exclusive=['check', 'movies'],
               help="Skip searching for Episodes in a Season.")
 @click.option("--check",
@@ -578,7 +589,7 @@ def cli(movies, series, search, search_prefix, skip, check, force, no_copy, verb
        IMPORTANT: Use a Staging area on your NAS to generate .vsmeta and only
                   then, add them to you Video Library.
 
-       It generates the temp files *.jpg and *.vsmeta on the current folder. 
+       It generates the temp files *.jpg and *.vsmeta on the current folder.
        You can then remove them.
     """
 
@@ -639,7 +650,7 @@ def cli(movies, series, search, search_prefix, skip, check, force, no_copy, verb
             else:
                 processed_titles.append(title)
                 vsmeta = find_metadata(
-                    title, year, basename, verbose, tv=True, 
+                    title, year, basename, verbose, tv=True,
                     season=season, episode=episode)
 
             if vsmeta:
